@@ -1,0 +1,297 @@
+---
+title: "Problem Set 4"
+author: "Ethan Jantz"
+date: "10/30/2020"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    code_folding: show
+  pdf_document:
+    toc: no
+  word_document:
+    toc: no
+always_allow_html: yes
+---
+
+This document is made using [R Markdown](https://rmarkdown.rstudio.com/), a great tool for sharing research in a way that is readable and reproducible. 
+
+```{r setup, echo = TRUE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE) # R Markdown options
+library(tidyverse)
+library(rmarkdown)
+```
+
+# A. Conceptual questions
+  
+### 1. What is the problem of the counterfactual in impact evaluations?
+    
+>    The problem of the counterfactual is that finding a control group for an impact study is difficult. You can't just always say that people who didn't participate in a program can serve as a good counterfactual to those who did. There may be external reasons why they chose not to participate that would not necessarily be captured by the data.
+    
+### 2. What is R?
+  
+>    R is a statistical programming language. It's very powerful and can be used in a variety of different analytical contexts.
+    
+### 3. What is a package in R
+
+>    A package is a set of functions that add new or expanded functionality to the R programming language, which is known as base R. 
+
+### 4. What does the library command do in R?
+
+>    The library command calls in and defines which packages your script is utilizing. Without calling the library command using the parameter 'tidyverse' you cannot use a host of tools from the packages included in the tidyverse suite (like %>% and mutate()). 
+
+# B. Applied Questions in R
+
+## Part 1: Short questions on R as a calculator
+
+### 1. Create an object called math that shows the product of **104857** times **375** divided by **0.3357486756** plus **83735**
+
+```{r }
+math <- 104857 * 375 / 0.3357486756 + 83735
+```
+
+### 2. What is the value of the object math?
+
+I'm not 100% sure why R was rounding my answer, but I fixed it by specifying how many digits (in this case 12 significant digits) I wanted displayed using the print() function.
+
+```{r }
+print(math, digits = 12)
+```
+
+Here is what is displayed by simply calling the object. In this context it really doesn't matter, but it was worth noting.
+
+```{r }
+math
+```
+
+### 3. Create a new object called math_sqr that takes the square root of math and show the value of that object. 
+
+```{r }
+math_sqr <- sqrt(math)
+
+math_sqr
+```
+
+## Part 2: Exploring changes in hourly wages after a job training program
+
+***
+
+**Context**
+  
+You are a policy analyst working for a policy research firm. You are part of a team providing technical assistance on program evaluation to a small non-profit organization that implements a job training program for low-wage workers. Your boss gave you data they received from the non-profit. The organization collected data on their 10 participants. They had originally saved the data in excel but the files were lost due to a hard drive failure and their original data cannot be recovered. The organization had saved these records as a pdf to show their board members during their last board meeting. Your boss shared the pdf document with you (this was provided on BB). 
+
+Your task as a policy analyst on this project is to calculate some basic summary statistics about the hourly wages of program participants before and after the training. 
+
+Before you begin you need to input the data in R by creating columns (vectors – covered in week 10) based on the pdf that was provided to you and saving as a data frame. 
+    
+***
+
+### Creating data
+
+I'll create the data from the pdf manually. I'll also take this opportunity to export the dataframe as a .csv for the client, as per question 13.
+
+> **Answers 1 - 5 + 13**
+
+```{r }
+work_data <- tibble(
+  ID = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+  gender = c("F", "M", "M", "M", "F", "M", "F", "F", "M", "M"),
+  hwage_pre = c(8, 10, 8.5, 8.5, 12, 15, 15, 7.25, 7.25, 9.78),
+  hwage_post = c(10, 10, 8.3, 12, 17, 19, 15, 8.25, 7.25, 10)
+) %>%
+  mutate(
+    gender = as.factor(gender)
+  )
+
+write_csv(work_data, "work_data.csv")
+paged_table(work_data)
+```
+
+### Descriptive data analysis
+
+> **Answer 6**
+
+```{r }
+work_data_summary <- work_data %>%
+  select(hwage_pre, hwage_post) %>%
+  summary()
+
+work_data_summary
+```
+
+> **Answers 7 - 12**
+
+> Here we can see that the minimum hourly wage (**$7.25**) did not change in the period after the program. The maximum wage did change from **$15** to **$19**. The average participant wage saw an increase of **$`r round(11.68 - 10.128, 2)`**, from **$10.12** to **$11.68**, over the course of the program. 
+
+> With the given data and information we cannot say that the program had a causal effect on participant wages. Participants likely come from groups that are more likely to seek promotions and higher wages, which is a group the program seeks to attract. This presents a problem of the counterfactual as well, since we have no data on control groups to compare our current group to.
+
+Let's examine the number of participants receiving federal minimum wage ($7.25/hour) before and after the program, and how many participants are female.
+
+> **Answers EXTRA CREDIT 1**
+
+```{r }
+work_data %>%
+  select(hwage_pre, hwage_post) %>%
+  summarize(
+    min_wage_pre = sum(hwage_pre == 7.25),
+    min_wage_post = sum(hwage_post == 7.25)
+    ) %>%
+  paged_table()
+```
+
+> **Two** participants were being paid the federal minimum wage before the program, whereas only **one** was being paid after.
+
+```{r }
+work_data %>%
+  group_by(gender) %>%
+  count()
+```
+
+> There were **four** female participants in this program. In the future, I recommend that the program utilize more inclusive practices and provide options for gender non-conforming participants to be coded into program data. It could be as simple as an "NB" (non-binary) coding, or more complex depending on the program's capacity and need for granularity.
+
+## Part 3: Data mainpulation the basics
+
+***
+
+**Context**
+
+Your boss was extremely happy with your prior work on the job training data. After taking the results back to the client (the non-profit that runs the training program), they had a few additional questions and you were asked to investigate them: 
+
+1.	Create a new variable called “wage_diff” in the original dataset “work_data” that shows the difference between hourly wage before and after the program. (HINT: use hwage_post – hwage_pre to calculate the difference). 
+
+2.	What is the difference in average hourly wage before and after the program by gender? Are men or women earning more after the program? By how much?  
+
+3.	You know that showing graphs and other visual aids is often more compelling. Produce a bar graph with the change in wages before and after the program for men and women. (You want gender on the horizontal axis and the difference in wages on the vertical axis. One bar shows the change for women and the bar shows the change for men).
+
+
+***
+
+The following chunk will add the wage_diff field to work_data.
+
+> **Answer 1**
+
+```{r }
+work_data <- work_data %>%
+  mutate(wage_diff = hwage_post - hwage_pre)
+
+paged_table(work_data)
+```
+
+Let's explore the difference in average pay before and after the program by gender.
+
+```{r }
+hwage_by_gender <- work_data %>%
+  group_by(gender) %>%
+  summarize(
+    hwage_mean_pre = mean(hwage_pre),
+    hwage_mean_post = mean(hwage_post)
+  ) %>%
+  mutate(
+    hwage_mean_diff = hwage_mean_post - hwage_mean_pre
+  )
+
+paged_table(hwage_by_gender)
+```
+
+> **Answers 2 + 3**
+
+> Female participants showed an average increase of **$2 per hour**, approximately **$0.75** more than the change in male participants of **$1.25 per hour**. 
+
+```{r }
+hwage_by_gender %>%
+  ggplot(aes(x = gender, y = hwage_mean_diff, fill = gender)) + 
+  geom_col() + 
+  geom_text(aes(label = paste0("$", round(hwage_mean_diff, 2))), vjust = -.5) +
+  labs(x = "Gender", y = "Average Change in Hourly Wage", fill = "Gender",
+       title = "Change in Participants' Hourly Wage") +
+  theme_minimal()
+```
+
+## Part 4: Beyond the basics: data manipulation on real data from Chicago Open data portal
+
+***
+
+**Context**
+
+By now, you are the R star analyst in your firm. Your boss is very impressed with your R work and programming skills. They decided to give you a more challenging project for the City of Chicago. In this project, that uses real data from the Chicago Open Data Portal, your task is to examine trends in crime occurrences in Chicago during the stay at home orders this year (2020) and compare those trends to the same time period (January to June) in the prior year (2019). 
+
+***
+
+I'll import the data first.
+
+```{r }
+crime <- read_csv("chicago_crime_ps4.csv")
+
+paged_table(crime)
+```
+
+### Exploring Crime Data
+
+```{r }
+months <- c(1, 2, 3, 4, 5, 6) # This time period is used a couple of times, so I stored it
+
+crime_count <- crime %>%
+  filter(month == months) %>%
+  group_by(year) %>%
+  count()
+
+paged_table(crime_count)
+```
+
+> **Answer 1**
+
+> For the months of January through June, **21,043** crimes occured in 2019 and **16,793** occured in 2020. This indicates a decrease in crime between the two periods. 
+
+```{r }
+crime_domestic <- crime %>%
+  group_by(year, domestic) %>% # To get counts
+  count() %>%
+  group_by(year) %>% # To get percentages I excluded domestic groupings
+  mutate(percent = round(n / sum(n), 2))
+
+paged_table(crime_domestic)
+```
+
+> **Answer 2**
+
+> In 2019, **17%** of reported crimes were domestic. **19%** of reported crimes were domestic in 2020. This can be interpreted as an increase of **2%** in domestic crimes between 2019 and 2020.
+
+### Plotting Crime Data
+
+Next, let's explore the trends in cases of homicide and theft between 2019 and 2020. 
+
+> **Answer 3**
+
+```{r }
+crime_primarytype <- crime %>%
+  filter(
+    month == months, # Calling the list of months from earlier
+    primarytype == "HOMICIDE" | primarytype == "THEFT"
+  ) %>%
+  group_by(year, month, primarytype) %>%
+  count()
+
+ggplot(crime_primarytype, aes(x = month, y = n)) +
+  geom_col() +
+  scale_x_continuous(breaks = c(1, 2, 3, 4, 5, 6),
+                     labels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun")) +
+  facet_grid(primarytype ~ year, scales = "free_y") +
+  labs(y = "Count", x = "Month",
+       title = "Crime Trends", subtitle = "Arranged by type of crime and year")
+```
+
+> The assignment asks for line plots, but since we're grouping the data by month I think a bar chart makes more sense. The lines between months indicate some linear change which we cannot actually tell from the data. For all we know a whole bunch of thefts happened on the first day of each month. If we were grouping it by the date variable I would use a line graph.
+
+> **Answers 4 + 5**
+
+> As shown in these graphs, homicides saw an increase in absolute monthly occurences between 2019 and 2020 after the beginning of the stay-home order. Thefts saw a decrease in absolute occurences between the same study period.
+
+> The homicide trends did not see any obvious changes between 2019 and 2020. However, thefts saw a marked change between 2019 and 2020 for the months of January through June. For 2019, thefts continued to increase throughout the six month period, while in 2020 thefts saw a negative trend from January to March followed by a less pronounced positive trend from April to June. 
+
+> The data provided is not sufficient to establish a causal claim that the stay-home order changed crime trends. The most immediate threat to a valid causal claim is the context that the stay-home order occured in: the onset of the COVID-19 pandemic. The pandemic serves as a historic threat to validity. Alongside this threat is the less obvious threat of questionable data quality, i.e. instrumentation. The crime data reported by the Chicago Open Data portal corresponds with calls to 911, not verified crimes. There is no way of know how many of these reports were associated with actual crimes. The following is an excerpt of the disclaimer on the page providing the data: *These crimes may be based upon preliminary information supplied to the Police Department by the reporting parties that have not been verified.* 
+
+> Crime data is problematic for a number of reasons, but the final problem I will highlight with this data is that it represents a biased selection. There are entire communities and groups of people who refuse to call the police to resolve problems because of the very real threat of violence that the police bring to a situation. This can mean that some groups of people are under-reported in this data set while others are over-reported. 
+
+> **Answer EXTRA CREDIT 2**
+
+> As a policy analyst, I would take approach crime analysis through a spatial lense. I've graphed out arrest rates by community area and grouped the communities into different socioeconomic buckets. The finding of this analysis was that areas with lower socioeconomic status have significantly higher average arrest rates than areas of higher socioeconomic status. It would be worthwhile to compare arrest rates with property tax revenue, or to explore crime reporting by ward. I'm sure other good questions would surface from that.
